@@ -1,0 +1,29 @@
+[project]
+name = "canon-testing"
+license = { text = "MIT" }
+version = "0.1.0"
+description = "A pytest-native coherence-testing framework for multi-agent systems."
+requires-python = ">=3.11"
+dependencies = [
+    "litellm>=1.40,<2.0",
+    "pyyaml>=6.0,<7.0",
+    "typer>=0.12,<1.0",
+    "python-dotenv>=1.0,<2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "hypothesis>=6.100"]
+
+[project.scripts]
+canon = "canon.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+# Hatchling includes non-.py package data (e.g., default_rubric.yaml) by default
+[tool.hatch.build.targets.wheel]
+packages = ["src/canon"]

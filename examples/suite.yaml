@@ -1,0 +1,11 @@
+# A suite for the `canon check` deploy-gate demo. These are all COHERENT
+# borrower-facing decisions, so `canon accept` records a passing baseline and
+# `canon check` stays green — until a change makes the system less coherent.
+# (Point the suite at an incoherent artifact, or use a real judge on a drifted
+# system, and `canon check` exits non-zero.)
+task: borrower-facing lending decisions
+artifacts:
+  - "Denial letter explaining the affordability shortfall with the exact figure and a revisit path."
+  - "Approval with the full repayment schedule and total cost of credit disclosed up front."
+  - "Underwriting that weights verified affordability above decision speed."
+  - "Declining a high-volume partner channel that pushes borrowers past their affordability limit."
