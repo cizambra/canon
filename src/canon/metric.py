@@ -6,16 +6,29 @@ from canon.rubric import Rubric, derive_questions, relevant_questions
 from canon.sampling import answer_question
 from canon.scoring import score_result
 
+_RUBRIC_IS_FIXED = (
+    "CoherenceMetric() takes no rubric: the packaged CDT rubric is fixed and "
+    "versioned so scores stay comparable and cannot be tuned to the artifact "
+    "being judged — your constitution is what makes a run yours."
+)
+
 
 class CoherenceMetric:
     def __init__(self, constitution: Constitution, threshold: float = 0.85,
-                 judge=None, samples: int = 5, rubric: Rubric | None = None):
+                 judge=None, samples: int = 5, **unsupported):
+        # `rubric=` is caught rather than merely absent so the refusal can say
+        # why the yardstick is fixed; every other typo keeps Python's message.
+        if "rubric" in unsupported:
+            raise TypeError(_RUBRIC_IS_FIXED)
+        if unsupported:
+            raise TypeError("CoherenceMetric() got an unexpected keyword argument "
+                            f"{next(iter(unsupported))!r}")
         if samples < 1:
             raise ValueError("samples must be >= 1")
         self.constitution = constitution
         self.threshold = threshold
         self.samples = samples
-        self.rubric = rubric or Rubric.load_default()
+        self._rubric = Rubric.load_default()
         if judge is None or isinstance(judge, str):
             # A bare model string ("provider:model") is the documented shorthand
             # for "use the default judge against this model".
@@ -26,7 +39,7 @@ class CoherenceMetric:
             self.judge = judge
 
     def score(self, artifact: str, task: str = "") -> CoherenceResult:
-        questions = derive_questions(self.rubric, self.constitution)
+        questions = derive_questions(self._rubric, self.constitution)
         questions, excluded = relevant_questions(questions, artifact, task, self.judge,
                                                  report_excluded=True)
         results = [answer_question(q, artifact, task, self.constitution, self.judge,

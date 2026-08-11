@@ -66,6 +66,9 @@ questions:
     text: "Were credible better-aligned ALTERNATIVES genuinely considered, so this is the most coherent option among those known — not merely an acceptable one?"
     choices: ["no", "partial", "yes"]
     scores: {"no": 0, "partial": 1, "yes": 2}
+  # A gate question states which answer means "violation" with `trips_on`;
+  # only "yes" is assumed when it is left out. Nothing is read from the order
+  # of `choices` — doing that once made ["yes", "no"] gate on the clean answer.
   - id: D1
     kind: gate
     weight: 0.0

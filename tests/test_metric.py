@@ -189,32 +189,68 @@ def test_stability_samples_5_with_a_4_1_vote_stays_within_tolerance_across_runs(
     assert abs(r1.score - r2.score) <= 0.02
 
 
-def test_custom_rubric_end_to_end_scores_with_the_custom_questions():
-    """CoherenceMetric(rubric=<custom>) must use the custom questions instead
-    of the packaged default rubric — a use-case for orgs that bring their own."""
+def test_passing_a_rubric_is_rejected_and_says_why():
+    """Deliberate: the rubric is fixed. A swappable rubric would let each run
+    pick its own yardstick, so the refusal has to carry the reason."""
     from canon.rubric import Rubric
-    custom = Rubric.from_dict({
-        "version": "custom-1",
-        "questions": [
-            {"id": "C1", "kind": "custom", "text": "Does it use plain language?",
-             "choices": ["no", "yes"], "scores": {"no": 0, "yes": 1}, "weight": 1.0},
-            {"id": "GATE", "kind": "gate", "text": "Any contradiction?",
-             "choices": ["no", "yes"], "is_gate": True},
-        ],
-    })
-    con = Constitution(mission="Serve well", principles=())
+    with pytest.raises(TypeError) as exc:
+        CoherenceMetric(constitution=_constitution(),
+                        judge=MockJudge(script=lambda q, c: c[-1]), samples=1,
+                        rubric=Rubric.load_default())
+    msg = str(exc.value)
+    assert "rubric" in msg and "comparable" in msg
+
+
+def test_an_unknown_keyword_that_is_not_a_rubric_still_names_itself():
+    """The rubric refusal is a catch-all argument, so an ordinary typo must
+    still report the argument that was wrong rather than the rubric lecture."""
+    with pytest.raises(TypeError, match="thresold"):
+        CoherenceMetric(constitution=_constitution(),
+                        judge=MockJudge(script=lambda q, c: c[-1]), thresold=0.9)
+
+
+def test_no_public_entry_point_accepts_a_rubric():
+    """One yardstick for everyone: no exported callable may take a rubric,
+    and the loader itself is not part of the public surface."""
+    import inspect
+    import canon
+    for name in canon.__all__:
+        entry = getattr(canon, name)
+        if not callable(entry):
+            continue
+        try:
+            params = inspect.signature(entry).parameters
+        except (TypeError, ValueError):
+            continue
+        assert "rubric" not in params, f"canon.{name} accepts a rubric"
+    assert not hasattr(canon, "Rubric")
+
+
+def test_org_specificity_comes_from_the_constitution_not_the_rubric():
+    """Use case: two orgs score the SAME packaged rubric questions — what makes
+    a run theirs is their constitution's derived principle questions."""
+    lender = Constitution(mission="Serve borrowers well", principles=("Be fair",))
+    clinic = Constitution(mission="Serve patients well",
+                          principles=("Do no harm", "Explain the risks"))
 
     def script(q, choices):
         if "in play for THIS decision" in q: return "relevant"
-        if "Any contradiction" in q: return "no"
-        if "plain language" in q: return "yes"
+        if "SERVE or VIOLATE" in q: return "violates" if "risks" in q else "serves"
+        if "EITHER true" in q: return "no"
         return "yes"
 
-    m = CoherenceMetric(constitution=con, threshold=0.5, judge=MockJudge(script=script),
-                        samples=1, rubric=custom)
-    res = m.score("a plainly written decision", task="t")
-    assert {q.id for q in res.questions} == {"C1", "GATE"}
-    assert res.score == 1.0 and not res.gated
+    judge = MockJudge(script=script)
+    lender_res = CoherenceMetric(constitution=lender, threshold=0.85, judge=judge,
+                                 samples=1).score("a decision", task="t")
+    clinic_res = CoherenceMetric(constitution=clinic, threshold=0.85, judge=judge,
+                                 samples=1).score("a decision", task="t")
+
+    fixed = {q.id for q in lender_res.questions if q.kind != "principle"}
+    assert fixed and fixed == {q.id for q in clinic_res.questions if q.kind != "principle"}
+    assert [q.subject for q in lender_res.questions if q.kind == "principle"] == ["Be fair"]
+    assert [q.subject for q in clinic_res.questions if q.kind == "principle"] == [
+        "Do no harm", "Explain the risks"]
+    assert clinic_res.score < lender_res.score
 
 
 def test_non_saturation_spread_use_case_six_artifacts_do_not_pile_at_1_0():

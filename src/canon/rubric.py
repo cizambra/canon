@@ -1,3 +1,8 @@
+"""Internal: the packaged CDT rubric and the questions derived from it.
+Loading and validating a rubric is not a public extension point — it exists to
+author and test the one packaged rubric, which every run uses so that scores
+stay comparable. `Rubric` is deliberately absent from `canon`'s exports.
+"""
 from __future__ import annotations
 
 import warnings

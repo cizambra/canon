@@ -185,3 +185,11 @@ def test_named_toml_with_top_level_canon_keys_but_no_tool_canon_raises(tmp_path)
     f.write_text('threshold = 0.5\n')
     with pytest.raises(ConfigError, match=r"tool\.canon"):
         Settings.load(start=tmp_path, config_path=f)
+
+
+def test_a_rubric_key_in_the_config_is_refused_not_silently_ignored(tmp_path):
+    """Deliberate: unknown keys are ignored, but a `rubric` key is a user
+    trying to swap the yardstick — silence would look like it worked."""
+    (tmp_path / "canon.yaml").write_text("rubric: my_rubric.yaml\n")
+    with pytest.raises(ConfigError, match="rubric"):
+        Settings.load(start=tmp_path)

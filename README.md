@@ -21,9 +21,10 @@ See `examples/` for a runnable demo. Install: `pip install canon-testing`.
 A few terms used throughout Canon and in its failure messages:
 
 - **Constitution** — the mission and principles you are testing against.
-- **Rubric** — the questions a judge answers about an artifact. Canon ships a
-  default rubric built on [Coherence Dynamics Theory
-  (CDT)](https://adaptable-discipline.com/cdt).
+- **Rubric** — the questions a judge answers about an artifact. Canon ships one
+  fixed rubric built on [Coherence Dynamics Theory
+  (CDT)](https://adaptable-discipline.com/cdt), and uses it for every run — see
+  [The rubric](#the-rubric).
 - **Facet** — one rubric question's dimension of coherence (does it advance the
   mission, does it surface the tradeoff, and so on). A facet with no occasion to
   apply is answered `n/a` and excluded from the average rather than penalized.
@@ -149,25 +150,28 @@ gate on the overall score — they just skip that facet-level check (Layer 1)
 and fall back to the mean-drift comparison (Layer 2), with a note printed so
 you know to re-accept.
 
-## Writing your own rubric
+## The rubric
 
-Canon ships a default rubric; you can supply your own by passing a `Rubric` to
-`CoherenceMetric`. One field is worth calling out: a **gate** question must say
-which of its answers means "violation", with `trips_on`.
+Canon ships one rubric, built on CDT, and always uses it. You can run the tests
+however you like; the questions they answer stay the same. That is deliberate.
 
-```yaml
-- id: D1
-  kind: gate
-  is_gate: true
-  text: "Does any part contradict a stated mission or principle?"
-  choices: ["no", "yes"]
-  trips_on: "yes"
-```
+A coherence score is only worth something if it means the same thing everywhere.
+A project that picks its own questions is measuring something else, and its
+number can't be set beside anyone else's — or beside its own from six months
+ago. Worse, a rubric you can edit is a rubric that gets edited when a run comes
+back badly: the yardstick bends toward the thing it is measuring, and the score
+stops being evidence. Keeping it fixed and versioned keeps the measurement
+honest and the bias out.
 
-A gate whose choices include `"yes"` may leave `trips_on` out — `"yes"` is
-assumed. Any other phrasing (`["false", "true"]`, `["clean", "breach"]`) must
-declare it, and a rubric that doesn't refuses to load. Nothing is inferred from
-the order of `choices`.
+What *is* yours is your constitution. Canon derives a question per principle
+from it, so every organization answers the same fixed facets — about its own
+mission and its own principles. That is where specificity belongs.
+
+So passing `rubric=` to `CoherenceMetric`, or putting a `rubric` key in
+`canon.yaml`, raises with that explanation rather than being quietly accepted
+or quietly ignored. When the packaged rubric's own version changes, `canon
+check` refuses to compare against a baseline recorded under the old one and
+asks you to re-accept, for the same reason: two rubrics, two yardsticks.
 
 ## Calling the pieces directly
 

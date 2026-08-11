@@ -8,6 +8,10 @@ import yaml
 
 from canon.errors import ConfigError
 
+# Never settings: the packaged CDT rubric is fixed so scores stay comparable.
+# Ignoring them the way unknown keys are ignored would read as "it worked".
+_REFUSED_KEYS = ("rubric", "rubric_path")
+
 _DEFAULTS = {
     "judge_model": "openai:gpt-5.6-luna",
     "threshold": 0.85,
@@ -69,6 +73,12 @@ def _read_config_file(path: Path) -> dict:
                 f"{path} carries Canon settings at top level but has no "
                 f"[tool.canon] table; nest them under [tool.canon]")
         data = table
+    for key in _REFUSED_KEYS:
+        if key in data:
+            raise ConfigError(
+                f"{path}: {key!r} is not a Canon setting — the packaged CDT rubric "
+                f"is fixed and versioned so scores stay comparable across runs "
+                f"and projects; your constitution is what makes a run yours")
     return data
 
 

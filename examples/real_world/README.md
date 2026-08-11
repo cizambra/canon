@@ -47,7 +47,7 @@ the violations gate and the controls pass.)
 
 Coherence is judged **relative to each organization's own stated values** — Canon
 asks "did they act consistently with what *they* said they stand for," not against
-an external morality. An earlier rubric scored Patagonia 0.83 (a false near-miss)
+an external morality. An earlier version of the rubric scored Patagonia 0.83 (a false near-miss)
 because a short ad doesn't exhibit every facet; the **N/A** rule — a facet with no
 occasion to apply is excluded from the average rather than penalized — fixed that,
 and it now scores 0.90.
