@@ -14,15 +14,22 @@ _RUBRIC_IS_FIXED = (
 
 
 class CoherenceMetric:
-    def __init__(self, constitution: Constitution, threshold: float = 0.85,
-                 judge=None, samples: int = 5, **unsupported):
+    def __init__(
+        self,
+        constitution: Constitution,
+        threshold: float = 0.85,
+        judge=None,
+        samples: int = 5,
+        **unsupported,
+    ):
         # `rubric=` is caught rather than merely absent so the refusal can say
         # why the yardstick is fixed; every other typo keeps Python's message.
         if "rubric" in unsupported:
             raise TypeError(_RUBRIC_IS_FIXED)
         if unsupported:
-            raise TypeError("CoherenceMetric() got an unexpected keyword argument "
-                            f"{next(iter(unsupported))!r}")
+            raise TypeError(
+                f"CoherenceMetric() got an unexpected keyword argument {next(iter(unsupported))!r}"
+            )
         if samples < 1:
             raise ValueError("samples must be >= 1")
         self.constitution = constitution
@@ -32,20 +39,25 @@ class CoherenceMetric:
         if judge is None or isinstance(judge, str):
             # A bare model string ("provider:model") is the documented shorthand
             # for "use the default judge against this model".
-            from canon.judge.litellm_judge import LiteLLMJudge
             from canon.config import default_judge_model
+            from canon.judge.litellm_judge import LiteLLMJudge
+
             self.judge = LiteLLMJudge(model=judge or default_judge_model())
         else:
             self.judge = judge
 
     def score(self, artifact: str, task: str = "") -> CoherenceResult:
         questions = derive_questions(self._rubric, self.constitution)
-        questions, excluded = relevant_questions(questions, artifact, task, self.judge,
-                                                 report_excluded=True)
-        results = [answer_question(q, artifact, task, self.constitution, self.judge,
-                                   self.samples) for q in questions]
-        return score_result(results, excluded_principles=excluded,
-                            artifact_key=artifact_key(artifact))
+        questions, excluded = relevant_questions(
+            questions, artifact, task, self.judge, report_excluded=True
+        )
+        results = [
+            answer_question(q, artifact, task, self.constitution, self.judge, self.samples)
+            for q in questions
+        ]
+        return score_result(
+            results, excluded_principles=excluded, artifact_key=artifact_key(artifact)
+        )
 
     def assert_coheres(self, artifact: str, task: str = "") -> CoherenceResult:
         res = self.score(artifact, task)

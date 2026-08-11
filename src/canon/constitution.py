@@ -14,20 +14,24 @@ def constitution_from_dict(data: dict) -> Constitution:
     principles = data.get("principles")
     if not isinstance(mission, str) or not mission.strip():
         raise ConfigError("constitution requires a non-empty 'mission'")
-    if not isinstance(principles, list) or not principles or not all(
-        isinstance(p, str) and p.strip() for p in principles
+    if (
+        not isinstance(principles, list)
+        or not principles
+        or not all(isinstance(p, str) and p.strip() for p in principles)
     ):
         raise ConfigError("constitution requires a non-empty list of string 'principles'")
     version = data.get("version")
-    return Constitution(mission=mission.strip(),
-                        principles=tuple(p.strip() for p in principles),
-                        version=str(version) if version is not None else None)
+    return Constitution(
+        mission=mission.strip(),
+        principles=tuple(p.strip() for p in principles),
+        version=str(version) if version is not None else None,
+    )
 
 
 def constitution_from_file(path: str | Path) -> Constitution:
     text = Path(path).read_text()
     try:
-        data = yaml.safe_load(text)   # YAML superset also parses JSON
+        data = yaml.safe_load(text)  # YAML superset also parses JSON
     except yaml.YAMLError:
         data = json.loads(text)
     if not isinstance(data, dict):

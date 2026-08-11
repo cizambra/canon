@@ -9,6 +9,7 @@ from canon import CoherenceMetric, constitution_from_file
 
 CONSTITUTION = constitution_from_file("constitution.yaml")
 
+
 def test_holds_direction():
     artifact = my_agent.run("…")
     CoherenceMetric(constitution=CONSTITUTION, threshold=0.85).assert_coheres(artifact)

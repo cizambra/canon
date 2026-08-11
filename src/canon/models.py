@@ -14,13 +14,13 @@ class Constitution:
 class QuestionResult:
     id: str
     kind: str
-    score: float | None          # None = N/A (not in play)
+    score: float | None  # None = N/A (not in play)
     max_score: float
     weight: float
     is_gate: bool
     gate_tripped: bool
     evidence: str
-    confidence: float            # 0..1, lopsidedness of the N-sample vote
+    confidence: float  # 0..1, lopsidedness of the N-sample vote
     # What the question was ABOUT — for principle questions, the principle text.
     # Question ids like "P1" are positional, so the subject is the only thing
     # that says whether two runs' P1s asked about the same principle at all.
@@ -28,20 +28,25 @@ class QuestionResult:
 
     def to_dict(self) -> dict:
         return {
-            "id": self.id, "kind": self.kind, "score": self.score,
-            "max_score": self.max_score, "weight": self.weight,
-            "is_gate": self.is_gate, "gate_tripped": self.gate_tripped,
-            "evidence": self.evidence, "confidence": self.confidence,
+            "id": self.id,
+            "kind": self.kind,
+            "score": self.score,
+            "max_score": self.max_score,
+            "weight": self.weight,
+            "is_gate": self.is_gate,
+            "gate_tripped": self.gate_tripped,
+            "evidence": self.evidence,
+            "confidence": self.confidence,
             "subject": self.subject,
         }
 
 
 @dataclass(frozen=True)
 class CoherenceResult:
-    score: float                 # 0..1 graded coherence
-    gated: bool                  # Non-Selective principle (NSCP) gate tripped
+    score: float  # 0..1 graded coherence
+    gated: bool  # Non-Selective principle (NSCP) gate tripped
     questions: tuple[QuestionResult, ...]
-    reasons: tuple[str, ...]     # localized failing-question summaries
+    reasons: tuple[str, ...]  # localized failing-question summaries
     # Principles the relevance pass judged not in play for this artifact. The
     # selection is part of the verdict: which principles were NOT weighed is as
     # auditable as how the weighed ones scored.
@@ -53,7 +58,8 @@ class CoherenceResult:
 
     def to_dict(self) -> dict:
         return {
-            "score": self.score, "gated": self.gated,
+            "score": self.score,
+            "gated": self.gated,
             "questions": [q.to_dict() for q in self.questions],
             "reasons": list(self.reasons),
             "excluded_principles": list(self.excluded_principles),

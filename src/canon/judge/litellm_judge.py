@@ -18,16 +18,21 @@ class LiteLLMJudge(Judge):
 
     def ask(self, system: str, question: str, choices: tuple[str, ...]) -> Answer:
         import litellm
+
         prompt = (
             f"{question}\n\nChoose exactly one of: {list(choices)}.\n"
-            'Return ONLY JSON: {"choice": <one of the options>, "evidence": <one short sentence citing the artifact>}'
+            'Return ONLY JSON: {"choice": <one of the options>, '
+            '"evidence": <one short sentence citing the artifact>}'
         )
         try:
             resp = litellm.completion(
-                model=self.model, temperature=self.temperature,
+                model=self.model,
+                temperature=self.temperature,
                 timeout=self.request_timeout,
-                messages=[{"role": "system", "content": system},
-                          {"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
             )
             text = resp["choices"][0]["message"]["content"]
         except Exception as exc:  # network/provider/parse — surface uniformly
@@ -59,4 +64,4 @@ def _extract_json(text: str) -> str:
     start, end = text.find("{"), text.rfind("}")
     if start == -1 or end == -1:
         raise ValueError("no JSON object in judge output")
-    return text[start:end + 1]
+    return text[start : end + 1]

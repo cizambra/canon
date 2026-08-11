@@ -27,17 +27,18 @@ def _load_dotenv(directory: Path) -> None:
     they see the repo-root canon.yaml.
     """
     from dotenv import dotenv_values
+
     merged: dict[str, str] = {}
     app_env = os.environ.get("APP_ENV")
     # Later files win among files: the shared .env, then the per-environment
     # rung, then the developer's own .env.local.
-    names = [".env", *( [f".env.{app_env}"] if app_env else [] ), ".env.local"]
+    names = [".env", *([f".env.{app_env}"] if app_env else []), ".env.local"]
     for name in names:
         f = directory / name
         if f.exists():
             merged.update({k: v for k, v in dotenv_values(f).items() if v is not None})
     for k, v in merged.items():
-        os.environ.setdefault(k, v)          # a real exported env var is never overwritten
+        os.environ.setdefault(k, v)  # a real exported env var is never overwritten
 
 
 def _as_float(value: object, name: str) -> float:
@@ -57,6 +58,7 @@ def _read_config_file(path: Path) -> dict:
             data = yaml.safe_load(path.read_text()) or {}
         else:
             import tomllib
+
             data = tomllib.loads(path.read_text())
     except Exception as exc:
         raise ConfigError(f"{path} is not valid {path.suffix.lstrip('.')}: {exc}") from exc
@@ -71,14 +73,16 @@ def _read_config_file(path: Path) -> dict:
         if not table and any(k in data for k in _DEFAULTS):
             raise ConfigError(
                 f"{path} carries Canon settings at top level but has no "
-                f"[tool.canon] table; nest them under [tool.canon]")
+                f"[tool.canon] table; nest them under [tool.canon]"
+            )
         data = table
     for key in _REFUSED_KEYS:
         if key in data:
             raise ConfigError(
                 f"{path}: {key!r} is not a Canon setting — the packaged CDT rubric "
                 f"is fixed and versioned so scores stay comparable across runs "
-                f"and projects; your constitution is what makes a run yours")
+                f"and projects; your constitution is what makes a run yours"
+            )
     return data
 
 
@@ -92,7 +96,7 @@ def _discover(start: Path) -> tuple[dict, Path | None]:
         py = d / "pyproject.toml"
         if py.exists():
             canon_cfg = _read_config_file(py)
-            if canon_cfg:              # only a real [tool.canon] stops the walk
+            if canon_cfg:  # only a real [tool.canon] stops the walk
                 return canon_cfg, py
             # bare pyproject without [tool.canon]: keep walking up
     return {}, None
@@ -124,8 +128,7 @@ class Settings:
         return self._resolve(self.baselines_dir)
 
     @classmethod
-    def load(cls, start: Path | None = None,
-             config_path: str | Path | None = None) -> "Settings":
+    def load(cls, start: Path | None = None, config_path: str | Path | None = None) -> Settings:
         """Load settings, optionally from an explicit config file.
         An explicit path replaces discovery outright: a missing file is an
         error, not a silent fall back to defaults. It doesn't relocate the
@@ -143,12 +146,14 @@ class Settings:
         cfg = {**_DEFAULTS, **discovered}
         if os.environ.get("CANON_JUDGE_MODEL"):
             cfg["judge_model"] = os.environ["CANON_JUDGE_MODEL"]
-        return cls(judge_model=str(cfg["judge_model"]),
-                   threshold=_as_float(cfg["threshold"], "threshold"),
-                   constitution_path=str(cfg["constitution_path"]),
-                   baselines_dir=str(cfg["baselines_dir"]),
-                   tolerance=_as_float(cfg["tolerance"], "tolerance"),
-                   root=root)
+        return cls(
+            judge_model=str(cfg["judge_model"]),
+            threshold=_as_float(cfg["threshold"], "threshold"),
+            constitution_path=str(cfg["constitution_path"]),
+            baselines_dir=str(cfg["baselines_dir"]),
+            tolerance=_as_float(cfg["tolerance"], "tolerance"),
+            root=root,
+        )
 
 
 def default_judge_model() -> str:
