@@ -23,14 +23,16 @@ def test_canon_yaml_and_env_override(monkeypatch, tmp_path):
 
 def test_pyproject_tool_canon_discovery(tmp_path):
     (tmp_path / "pyproject.toml").write_text(
-        '[tool.canon]\njudge_model = "openai:x"\nthreshold = 0.6\n')
+        '[tool.canon]\njudge_model = "openai:x"\nthreshold = 0.6\n'
+    )
     s = Settings.load(start=tmp_path)
     assert s.judge_model == "openai:x" and s.threshold == 0.6
 
 
 def test_walkup_skips_bare_pyproject_to_find_canon_yaml(tmp_path):
     (tmp_path / "canon.yaml").write_text("judge_model: together:deep\n")
-    sub = tmp_path / "sub"; sub.mkdir()
+    sub = tmp_path / "sub"
+    sub.mkdir()
     (sub / "pyproject.toml").write_text("[project]\nname = 'x'\n")
     s = Settings.load(start=sub)
     assert s.judge_model == "together:deep"
@@ -47,6 +49,7 @@ def test_dotenv_local_overrides_env_but_not_real_env(tmp_path, monkeypatch):
 
 def test_set_judge_writes_canon_yaml(tmp_path):
     from canon.config import set_judge
+
     p = tmp_path / "canon.yaml"
     set_judge("together", "deepseek", p)
     assert "together:deepseek" in p.read_text()
@@ -54,7 +57,9 @@ def test_set_judge_writes_canon_yaml(tmp_path):
 
 def test_malformed_canon_yaml_raises_config_error(tmp_path):
     import pytest
+
     from canon.errors import ConfigError
+
     (tmp_path / "canon.yaml").write_text("judge_model: [unclosed\nthreshold: 0.7\n")
     with pytest.raises(ConfigError, match="canon.yaml"):
         Settings.load(start=tmp_path)
@@ -62,7 +67,9 @@ def test_malformed_canon_yaml_raises_config_error(tmp_path):
 
 def test_non_numeric_threshold_raises_config_error(tmp_path):
     import pytest
+
     from canon.errors import ConfigError
+
     (tmp_path / "canon.yaml").write_text("threshold: not-a-number\n")
     with pytest.raises(ConfigError, match="threshold"):
         Settings.load(start=tmp_path)
@@ -84,7 +91,7 @@ def test_tolerance_defaults_and_is_configurable(tmp_path):
 
 
 def test_tolerance_from_pyproject_tool_canon(tmp_path):
-    (tmp_path / "pyproject.toml").write_text('[tool.canon]\ntolerance = 0.07\n')
+    (tmp_path / "pyproject.toml").write_text("[tool.canon]\ntolerance = 0.07\n")
     assert Settings.load(start=tmp_path).tolerance == 0.07
 
 
@@ -110,14 +117,17 @@ def test_explicit_config_path_wins_over_discovery(tmp_path):
 
 def test_explicit_config_path_must_exist(tmp_path):
     import pytest
+
     from canon.errors import ConfigError
+
     with pytest.raises(ConfigError, match="config file not found"):
         Settings.load(start=tmp_path, config_path=tmp_path / "nope.yaml")
 
 
 def test_relative_paths_resolve_against_the_config_root(tmp_path):
     (tmp_path / "canon.yaml").write_text(
-        "constitution_path: shared/constitution.yaml\nbaselines_dir: canon/baselines\n")
+        "constitution_path: shared/constitution.yaml\nbaselines_dir: canon/baselines\n"
+    )
     sub = tmp_path / "sub" / "deeper"
     sub.mkdir(parents=True)
     s = Settings.load(start=sub)
@@ -127,14 +137,16 @@ def test_relative_paths_resolve_against_the_config_root(tmp_path):
 
 def test_absolute_paths_in_the_config_are_left_alone(tmp_path):
     (tmp_path / "canon.yaml").write_text(
-        f"constitution_path: /etc/canon/constitution.yaml\nbaselines_dir: /var/canon\n")
+        "constitution_path: /etc/canon/constitution.yaml\nbaselines_dir: /var/canon\n"
+    )
     s = Settings.load(start=tmp_path)
     assert s.constitution_file == Path("/etc/canon/constitution.yaml")
     assert s.baselines_directory == Path("/var/canon")
 
 
 def test_with_no_config_anywhere_paths_stay_relative_to_the_current_directory(
-        tmp_path, monkeypatch):
+    tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
     s = Settings.load(start=tmp_path)
     assert s.baselines_directory == tmp_path / "canon" / "baselines"
@@ -146,8 +158,8 @@ def test_explicit_pyproject_config_reads_the_tool_canon_table(tmp_path, monkeypa
     yields defaults — the settings are there, just never seen."""
     monkeypatch.delenv("CANON_JUDGE_MODEL", raising=False)
     (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "x"\n\n[tool.canon]\nthreshold = 0.42\n'
-        'judge_model = "together:deep"\n')
+        '[project]\nname = "x"\n\n[tool.canon]\nthreshold = 0.42\njudge_model = "together:deep"\n'
+    )
     s = Settings.load(start=tmp_path, config_path=tmp_path / "pyproject.toml")
     assert s.threshold == 0.42 and s.judge_model == "together:deep"
 
@@ -164,8 +176,7 @@ def test_explicit_pyproject_without_tool_canon_yields_defaults(tmp_path):
     """Naming a config file that says nothing about Canon is not an error —
     there is simply nothing configured in it."""
     (tmp_path / "pyproject.toml").write_text('[project]\nname = "x"\n')
-    assert Settings.load(start=tmp_path,
-                         config_path=tmp_path / "pyproject.toml").threshold == 0.85
+    assert Settings.load(start=tmp_path, config_path=tmp_path / "pyproject.toml").threshold == 0.85
 
 
 def test_same_directory_canon_yaml_beats_tool_canon(tmp_path):
@@ -173,8 +184,9 @@ def test_same_directory_canon_yaml_beats_tool_canon(tmp_path):
     [tool.canon] in pyproject.toml is only a fallback for projects with no
     canon.yaml at all, never a second vote once one exists alongside it."""
     (tmp_path / "canon.yaml").write_text("threshold: 0.42\n")
-    (tmp_path / "pyproject.toml").write_text('[tool.canon]\nthreshold = 0.99\n')
+    (tmp_path / "pyproject.toml").write_text("[tool.canon]\nthreshold = 0.99\n")
     assert Settings.load(start=tmp_path).threshold == 0.42
+
 
 def test_named_toml_with_top_level_canon_keys_but_no_tool_canon_raises(tmp_path):
     """`--config shared.toml` holding `threshold = 0.5` at top level would
@@ -182,6 +194,14 @@ def test_named_toml_with_top_level_canon_keys_but_no_tool_canon_raises(tmp_path)
     [tool.canon] unwrap was meant to kill, resurfacing for non-pyproject
     TOML."""
     f = tmp_path / "shared.toml"
-    f.write_text('threshold = 0.5\n')
+    f.write_text("threshold = 0.5\n")
     with pytest.raises(ConfigError, match=r"tool\.canon"):
         Settings.load(start=tmp_path, config_path=f)
+
+
+def test_a_rubric_key_in_the_config_is_refused_not_silently_ignored(tmp_path):
+    """Deliberate: unknown keys are ignored, but a `rubric` key is a user
+    trying to swap the yardstick — silence would look like it worked."""
+    (tmp_path / "canon.yaml").write_text("rubric: my_rubric.yaml\n")
+    with pytest.raises(ConfigError, match="rubric"):
+        Settings.load(start=tmp_path)

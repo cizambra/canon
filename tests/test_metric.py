@@ -1,7 +1,8 @@
-from canon import CoherenceMetric
-from canon.models import Constitution
-from canon.judge.mock import MockJudge
 import pytest
+
+from canon import CoherenceMetric
+from canon.judge.mock import MockJudge
+from canon.models import Constitution
 
 
 def _constitution():
@@ -10,24 +11,34 @@ def _constitution():
 
 def test_metric_passes_when_all_yes():
     def script(q, choices):
-        if "in play for THIS decision" in q: return "relevant"
-        if "SERVE or VIOLATE" in q: return "serves"
-        if "EITHER true" in q: return "no"          # gate not tripped
+        if "in play for THIS decision" in q:
+            return "relevant"
+        if "SERVE or VIOLATE" in q:
+            return "serves"
+        if "EITHER true" in q:
+            return "no"  # gate not tripped
         return "yes"
-    m = CoherenceMetric(constitution=_constitution(), threshold=0.85,
-                        judge=MockJudge(script=script), samples=1)
+
+    m = CoherenceMetric(
+        constitution=_constitution(), threshold=0.85, judge=MockJudge(script=script), samples=1
+    )
     res = m.assert_coheres("a fair, mission-serving decision", task="decide")
     assert res.score >= 0.85 and not res.gated
 
 
 def test_metric_fails_and_localizes_on_gate():
     def script(q, choices):
-        if "in play for THIS decision" in q: return "relevant"
-        if "SERVE or VIOLATE" in q: return "violates"
-        if "EITHER true" in q: return "yes"         # gate tripped (commission)
+        if "in play for THIS decision" in q:
+            return "relevant"
+        if "SERVE or VIOLATE" in q:
+            return "violates"
+        if "EITHER true" in q:
+            return "yes"  # gate tripped (commission)
         return "yes"
-    m = CoherenceMetric(constitution=_constitution(), threshold=0.85,
-                        judge=MockJudge(script=script), samples=1)
+
+    m = CoherenceMetric(
+        constitution=_constitution(), threshold=0.85, judge=MockJudge(script=script), samples=1
+    )
     with pytest.raises(AssertionError) as exc:
         m.assert_coheres("a decision that violates fairness", task="decide")
     assert "non-canon" in str(exc.value)
@@ -36,21 +47,28 @@ def test_metric_fails_and_localizes_on_gate():
 def test_metric_accepts_a_judge_model_string(monkeypatch):
     """judge="provider:model" is documented shorthand; it must resolve to a LiteLLMJudge."""
     import litellm
+
     seen = {}
 
     def fake_completion(**kwargs):
         seen["model"] = kwargs["model"]
         q = kwargs["messages"][1]["content"]
-        choice = ("relevant" if "in play for THIS decision" in q else
-                  "serves" if "SERVE or VIOLATE" in q else
-                  "no" if "EITHER true" in q else "yes")
-        return {"choices": [{"message": {
-            "content": '{"choice": "%s", "evidence": "e"}' % choice}}]}
+        choice = (
+            "relevant"
+            if "in play for THIS decision" in q
+            else "serves"
+            if "SERVE or VIOLATE" in q
+            else "no"
+            if "EITHER true" in q
+            else "yes"
+        )
+        return {"choices": [{"message": {"content": f'{{"choice": "{choice}", "evidence": "e"}}'}}]}
 
     monkeypatch.setattr(litellm, "completion", fake_completion)
     monkeypatch.delenv("CANON_JUDGE_MODEL", raising=False)
-    m = CoherenceMetric(constitution=_constitution(), threshold=0.85,
-                        judge="openai:gpt-5.6-luna", samples=1)
+    m = CoherenceMetric(
+        constitution=_constitution(), threshold=0.85, judge="openai:gpt-5.6-luna", samples=1
+    )
     res = m.score("a fair, mission-serving decision", task="decide")
     assert res.score >= 0.85 and not res.gated
     assert seen["model"] == "openai/gpt-5.6-luna"
@@ -58,45 +76,57 @@ def test_metric_accepts_a_judge_model_string(monkeypatch):
 
 def test_samples_zero_is_rejected():
     with pytest.raises(ValueError, match="samples must be >= 1"):
-        CoherenceMetric(constitution=_constitution(), judge=MockJudge(script=lambda q, c: c[-1]),
-                        samples=0)
+        CoherenceMetric(
+            constitution=_constitution(), judge=MockJudge(script=lambda q, c: c[-1]), samples=0
+        )
 
 
 def test_sampling_rejects_zero_samples_directly():
     from canon.rubric import Rubric
     from canon.sampling import answer_question
+
     q = next(x for x in Rubric.load_default().questions if x.id == "M1")
     with pytest.raises(ValueError, match="samples must be >= 1"):
-        answer_question(q, "a", "t", _constitution(),
-                        MockJudge(script=lambda _q, _c: "yes"), samples=0)
+        answer_question(
+            q, "a", "t", _constitution(), MockJudge(script=lambda _q, _c: "yes"), samples=0
+        )
 
 
 def test_single_sample_is_full_confidence():
     def script(q, choices):
-        if "in play for THIS decision" in q: return "relevant"
-        if "SERVE or VIOLATE" in q: return "serves"
-        if "EITHER true" in q: return "no"
+        if "in play for THIS decision" in q:
+            return "relevant"
+        if "SERVE or VIOLATE" in q:
+            return "serves"
+        if "EITHER true" in q:
+            return "no"
         return "yes"
-    m = CoherenceMetric(constitution=_constitution(), threshold=0.85,
-                        judge=MockJudge(script=script), samples=1)
+
+    m = CoherenceMetric(
+        constitution=_constitution(), threshold=0.85, judge=MockJudge(script=script), samples=1
+    )
     res = m.score("a fair, mission-serving decision", task="decide")
     assert res.questions and all(q.confidence == 1.0 for q in res.questions)
 
 
 def test_excluded_principles_are_recorded_on_the_result():
     """The relevance pass is a selection; a silent selection is not auditable."""
-    con = Constitution(mission="Serve borrowers well",
-                       principles=("Be fair", "Handle refunds kindly"))
+    con = Constitution(
+        mission="Serve borrowers well", principles=("Be fair", "Handle refunds kindly")
+    )
 
     def script(q, choices):
         if "in play for THIS decision" in q:
             return "not_relevant" if "refunds" in q else "relevant"
-        if "SERVE or VIOLATE" in q: return "serves"
-        if "EITHER true" in q: return "no"
+        if "SERVE or VIOLATE" in q:
+            return "serves"
+        if "EITHER true" in q:
+            return "no"
         return "yes"
 
-    res = CoherenceMetric(constitution=con, threshold=0.85,
-                          judge=MockJudge(script=script), samples=1).score("a", task="t")
+    res = CoherenceMetric(
+        constitution=con, threshold=0.85, judge=MockJudge(script=script), samples=1
+    ).score("a", task="t")
     assert res.excluded_principles == ("Handle refunds kindly",)
     assert res.to_dict()["excluded_principles"] == ["Handle refunds kindly"]
 
@@ -105,31 +135,44 @@ def test_gate_omission_arm_a_silently_complied_with_drift_is_gated():
     """D1 is a two-sided gate: contradicts (commission) OR silently complies
     with drift (omission). This drives the omission arm;
     test_metric_fails_and_localizes_on_gate covers commission."""
+
     def script(q, choices):
-        if "in play for THIS decision" in q: return "relevant"
-        if "SERVE or VIOLATE" in q: return "partial"     # no outright violation
-        if "EITHER true" in q: return "yes"              # omission arm trips the gate
+        if "in play for THIS decision" in q:
+            return "relevant"
+        if "SERVE or VIOLATE" in q:
+            return "partial"  # no outright violation
+        if "EITHER true" in q:
+            return "yes"  # omission arm trips the gate
         return "yes"
-    m = CoherenceMetric(constitution=_constitution(), threshold=0.85,
-                        judge=MockJudge(script=script), samples=1)
+
+    m = CoherenceMetric(
+        constitution=_constitution(), threshold=0.85, judge=MockJudge(script=script), samples=1
+    )
     with pytest.raises(AssertionError) as exc:
         m.assert_coheres(
             "The request drifted from the agreed fair-lending policy mid-thread; "
             "the decision went along with it without naming or pushing back on the drift.",
-            task="decide")
+            task="decide",
+        )
     assert "non-canon" in str(exc.value) and "gate" in str(exc.value).lower()
 
 
 def test_ungated_sub_threshold_score_raises_with_the_score_in_the_message():
     """A score below threshold with NO gate trip still raises — the message
     must carry the actual numeric score, not just a generic failure."""
+
     def script(q, choices):
-        if "in play for THIS decision" in q: return "relevant"
-        if "SERVE or VIOLATE" in q: return "partial"
-        if "EITHER true" in q: return "no"               # gate never trips
+        if "in play for THIS decision" in q:
+            return "relevant"
+        if "SERVE or VIOLATE" in q:
+            return "partial"
+        if "EITHER true" in q:
+            return "no"  # gate never trips
         return "partial"
-    m = CoherenceMetric(constitution=_constitution(), threshold=0.85,
-                        judge=MockJudge(script=script), samples=1)
+
+    m = CoherenceMetric(
+        constitution=_constitution(), threshold=0.85, judge=MockJudge(script=script), samples=1
+    )
     with pytest.raises(AssertionError) as exc:
         m.assert_coheres("a middling decision", task="decide")
     msg = str(exc.value)
@@ -139,14 +182,17 @@ def test_ungated_sub_threshold_score_raises_with_the_score_in_the_message():
 def test_threshold_boundary_score_exactly_equal_to_threshold_passes():
     """score == threshold is inclusive (`score < threshold` is the only
     failing comparison) — deliberate, not an off-by-one."""
+
     def script(q, choices):
-        if "in play for THIS decision" in q: return "relevant"
-        if "EITHER true" in q: return "no"
-        return "partial"                                  # every graded facet -> raw 0.5
+        if "in play for THIS decision" in q:
+            return "relevant"
+        if "EITHER true" in q:
+            return "no"
+        return "partial"  # every graded facet -> raw 0.5
+
     con = Constitution(mission="M", principles=())
-    m = CoherenceMetric(constitution=con, threshold=0.5,
-                        judge=MockJudge(script=script), samples=1)
-    res = m.assert_coheres("an artifact", task="t")        # must NOT raise
+    m = CoherenceMetric(constitution=con, threshold=0.5, judge=MockJudge(script=script), samples=1)
+    res = m.assert_coheres("an artifact", task="t")  # must NOT raise
     assert res.score == 0.5
 
 
@@ -154,15 +200,22 @@ def test_stability_same_deterministic_mock_scores_the_same_artifact_identically(
     """A deterministic judge (no real-world sampling noise)
     scoring the same artifact twice must return an identical score and
     verdict — the pipeline itself introduces no nondeterminism."""
+
     def script(q, choices):
-        if "in play for THIS decision" in q: return "relevant"
-        if "SERVE or VIOLATE" in q: return "serves"
-        if "EITHER true" in q: return "no"
+        if "in play for THIS decision" in q:
+            return "relevant"
+        if "SERVE or VIOLATE" in q:
+            return "serves"
+        if "EITHER true" in q:
+            return "no"
         return "yes"
-    m1 = CoherenceMetric(constitution=_constitution(), threshold=0.85,
-                         judge=MockJudge(script=script), samples=1)
-    m2 = CoherenceMetric(constitution=_constitution(), threshold=0.85,
-                         judge=MockJudge(script=script), samples=1)
+
+    m1 = CoherenceMetric(
+        constitution=_constitution(), threshold=0.85, judge=MockJudge(script=script), samples=1
+    )
+    m2 = CoherenceMetric(
+        constitution=_constitution(), threshold=0.85, judge=MockJudge(script=script), samples=1
+    )
     r1 = m1.score("a fair, mission-serving decision", task="decide")
     r2 = m2.score("a fair, mission-serving decision", task="decide")
     assert r1.score == r2.score and r1.gated == r2.gated
@@ -171,74 +224,151 @@ def test_stability_same_deterministic_mock_scores_the_same_artifact_identically(
 def test_stability_samples_5_with_a_4_1_vote_stays_within_tolerance_across_runs():
     """samples=5 with a majority-vote (4/1) script: repeated independent runs
     must land within the declared 0.02 stability tolerance of each other."""
+
     def make_script():
         calls = {"n": 0}
+
         def script(q, choices):
-            if "in play for THIS decision" in q: return "relevant"
-            if "SERVE or VIOLATE" in q: return "serves"
-            if "EITHER true" in q: return "no"
+            if "in play for THIS decision" in q:
+                return "relevant"
+            if "SERVE or VIOLATE" in q:
+                return "serves"
+            if "EITHER true" in q:
+                return "no"
             calls["n"] += 1
-            return "yes" if calls["n"] % 5 != 0 else "partial"   # 4/5 yes per question
+            return "yes" if calls["n"] % 5 != 0 else "partial"  # 4/5 yes per question
+
         return script
-    m1 = CoherenceMetric(constitution=_constitution(), threshold=0.85,
-                         judge=MockJudge(script=make_script()), samples=5)
-    m2 = CoherenceMetric(constitution=_constitution(), threshold=0.85,
-                         judge=MockJudge(script=make_script()), samples=5)
+
+    m1 = CoherenceMetric(
+        constitution=_constitution(),
+        threshold=0.85,
+        judge=MockJudge(script=make_script()),
+        samples=5,
+    )
+    m2 = CoherenceMetric(
+        constitution=_constitution(),
+        threshold=0.85,
+        judge=MockJudge(script=make_script()),
+        samples=5,
+    )
     r1 = m1.score("a fair, mission-serving decision", task="decide")
     r2 = m2.score("a fair, mission-serving decision", task="decide")
     assert abs(r1.score - r2.score) <= 0.02
 
 
-def test_custom_rubric_end_to_end_scores_with_the_custom_questions():
-    """CoherenceMetric(rubric=<custom>) must use the custom questions instead
-    of the packaged default rubric — a use-case for orgs that bring their own."""
+def test_passing_a_rubric_is_rejected_and_says_why():
+    """Deliberate: the rubric is fixed. A swappable rubric would let each run
+    pick its own yardstick, so the refusal has to carry the reason."""
     from canon.rubric import Rubric
-    custom = Rubric.from_dict({
-        "version": "custom-1",
-        "questions": [
-            {"id": "C1", "kind": "custom", "text": "Does it use plain language?",
-             "choices": ["no", "yes"], "scores": {"no": 0, "yes": 1}, "weight": 1.0},
-            {"id": "GATE", "kind": "gate", "text": "Any contradiction?",
-             "choices": ["no", "yes"], "is_gate": True},
-        ],
-    })
-    con = Constitution(mission="Serve well", principles=())
+
+    with pytest.raises(TypeError) as exc:
+        CoherenceMetric(
+            constitution=_constitution(),
+            judge=MockJudge(script=lambda q, c: c[-1]),
+            samples=1,
+            rubric=Rubric.load_default(),
+        )
+    msg = str(exc.value)
+    assert "rubric" in msg and "comparable" in msg
+
+
+def test_an_unknown_keyword_that_is_not_a_rubric_still_names_itself():
+    """The rubric refusal is a catch-all argument, so an ordinary typo must
+    still report the argument that was wrong rather than the rubric lecture."""
+    with pytest.raises(TypeError, match="thresold"):
+        CoherenceMetric(
+            constitution=_constitution(), judge=MockJudge(script=lambda q, c: c[-1]), thresold=0.9
+        )
+
+
+def test_no_public_entry_point_accepts_a_rubric():
+    """One yardstick for everyone: no exported callable may take a rubric,
+    and the loader itself is not part of the public surface."""
+    import inspect
+
+    import canon
+
+    for name in canon.__all__:
+        entry = getattr(canon, name)
+        if not callable(entry):
+            continue
+        try:
+            params = inspect.signature(entry).parameters
+        except (TypeError, ValueError):
+            continue
+        assert "rubric" not in params, f"canon.{name} accepts a rubric"
+    assert not hasattr(canon, "Rubric")
+
+
+def test_org_specificity_comes_from_the_constitution_not_the_rubric():
+    """Use case: two orgs score the SAME packaged rubric questions — what makes
+    a run theirs is their constitution's derived principle questions."""
+    lender = Constitution(mission="Serve borrowers well", principles=("Be fair",))
+    clinic = Constitution(
+        mission="Serve patients well", principles=("Do no harm", "Explain the risks")
+    )
 
     def script(q, choices):
-        if "in play for THIS decision" in q: return "relevant"
-        if "Any contradiction" in q: return "no"
-        if "plain language" in q: return "yes"
+        if "in play for THIS decision" in q:
+            return "relevant"
+        if "SERVE or VIOLATE" in q:
+            return "violates" if "risks" in q else "serves"
+        if "EITHER true" in q:
+            return "no"
         return "yes"
 
-    m = CoherenceMetric(constitution=con, threshold=0.5, judge=MockJudge(script=script),
-                        samples=1, rubric=custom)
-    res = m.score("a plainly written decision", task="t")
-    assert {q.id for q in res.questions} == {"C1", "GATE"}
-    assert res.score == 1.0 and not res.gated
+    judge = MockJudge(script=script)
+    lender_res = CoherenceMetric(constitution=lender, threshold=0.85, judge=judge, samples=1).score(
+        "a decision", task="t"
+    )
+    clinic_res = CoherenceMetric(constitution=clinic, threshold=0.85, judge=judge, samples=1).score(
+        "a decision", task="t"
+    )
+
+    fixed = {q.id for q in lender_res.questions if q.kind != "principle"}
+    assert fixed and fixed == {q.id for q in clinic_res.questions if q.kind != "principle"}
+    assert [q.subject for q in lender_res.questions if q.kind == "principle"] == ["Be fair"]
+    assert [q.subject for q in clinic_res.questions if q.kind == "principle"] == [
+        "Do no harm",
+        "Explain the risks",
+    ]
+    assert clinic_res.score < lender_res.score
 
 
 def test_non_saturation_spread_use_case_six_artifacts_do_not_pile_at_1_0():
     """Use case: a suite of 6 artifacts of varying quality must produce a
     graded SPREAD of scores rather than clustering at the ceiling — the
     rubric's whole point is resolving *how* coherent, not just pass/fail."""
-    from canon.runner import run_suite
     import tempfile
     from pathlib import Path
+
     import yaml
 
+    from canon.runner import run_suite
+
     con = Constitution(mission="Serve borrowers well", principles=("Be fair",))
-    levels = {"LEVEL_A": "yes", "LEVEL_B": "partial", "LEVEL_C": "no",
-             "LEVEL_D": "yes", "LEVEL_E": "partial", "LEVEL_F": "no"}
+    levels = {
+        "LEVEL_A": "yes",
+        "LEVEL_B": "partial",
+        "LEVEL_C": "no",
+        "LEVEL_D": "yes",
+        "LEVEL_E": "partial",
+        "LEVEL_F": "no",
+    }
     flip_mission = {"LEVEL_D", "LEVEL_E", "LEVEL_F"}
 
     def script(q, choices):
-        if "in play for THIS decision" in q: return "relevant"
-        if "SERVE or VIOLATE" in q: return "serves"
-        if "EITHER true" in q: return "no"
+        if "in play for THIS decision" in q:
+            return "relevant"
+        if "SERVE or VIOLATE" in q:
+            return "serves"
+        if "EITHER true" in q:
+            return "no"
         marker = next(m for m in levels if m in q)
         if "ADVANCE the stated mission" in q:
             return "no" if marker in flip_mission else levels[marker]
-        if "credible better-aligned ALTERNATIVES" in q:      # H1 has no n/a option
+        if "credible better-aligned ALTERNATIVES" in q:  # H1 has no n/a option
             return "partial"
         return levels[marker]
 

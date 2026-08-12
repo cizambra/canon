@@ -46,14 +46,23 @@ def _logfact(n: int) -> float:
 
 def _lhyper(a: int, b: int, c: int, d: int) -> float:
     r1, r2, c1, tot = a + b, c + d, a + c, a + b + c + d
-    return (_logfact(r1) + _logfact(r2) + _logfact(c1) + _logfact(b + d)
-            - _logfact(tot) - _logfact(a) - _logfact(b) - _logfact(c) - _logfact(d))
+    return (
+        _logfact(r1)
+        + _logfact(r2)
+        + _logfact(c1)
+        + _logfact(b + d)
+        - _logfact(tot)
+        - _logfact(a)
+        - _logfact(b)
+        - _logfact(c)
+        - _logfact(d)
+    )
 
 
 def fisher_exact(a: int, b: int, c: int, d: int) -> float:
     if a < 0 or b < 0 or c < 0 or d < 0:
         raise ValueError("counts must be non-negative")
-    r1, c1, tot = a + b, a + c, a + b + c + d
+    r1, c1 = a + b, a + c
     r2 = c + d
     obs = _lhyper(a, b, c, d)
     tol = 1e-9
@@ -61,7 +70,7 @@ def fisher_exact(a: int, b: int, c: int, d: int) -> float:
     lo = max(0, c1 - r2)
     hi = min(c1, r1)
     for x in range(lo, hi + 1):
-        l = _lhyper(x, r1 - x, c1 - x, r2 - (c1 - x))
-        if l <= obs + tol:
-            p += math.exp(l)
+        logp = _lhyper(x, r1 - x, c1 - x, r2 - (c1 - x))
+        if logp <= obs + tol:
+            p += math.exp(logp)
     return min(1.0, p)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from canon.errors import ConfigError
@@ -40,7 +40,7 @@ class Baseline:
         Path(path).write_text(json.dumps(asdict(self), indent=2))
 
     @classmethod
-    def load(cls, path: str | Path) -> "Baseline":
+    def load(cls, path: str | Path) -> Baseline:
         # A baseline is hand-editable, so a mangled one is a configuration
         # problem — not a coherence regression. Keeping the two distinguishable
         # is the whole point: exit 1 means "the system drifted", exit 2 means
@@ -63,15 +63,19 @@ def _question_rows(result: CoherenceResult) -> list[dict]:
     # flag already records them — so only scored facets are worth recording.
     # `subject` travels with the id because the id alone is positional: it says
     # WHICH principle "P1" stood for when this baseline was accepted.
-    return [{"id": q.id, "score": normalized_score(q), "confidence": q.confidence,
-             "subject": q.subject}
-            for q in result.questions if not q.is_gate]
+    return [
+        {"id": q.id, "score": normalized_score(q), "confidence": q.confidence, "subject": q.subject}
+        for q in result.questions
+        if not q.is_gate
+    ]
 
 
 def record_baseline(results: list[CoherenceResult], rubric_version: str) -> Baseline:
-    return Baseline(rubric_version=rubric_version,
-                    scores=[r.score for r in results],
-                    gated=[r.gated for r in results],
-                    questions=[_question_rows(r) for r in results],
-                    excluded_principles=[list(r.excluded_principles) for r in results],
-                    artifact_keys=[r.artifact_key for r in results])
+    return Baseline(
+        rubric_version=rubric_version,
+        scores=[r.score for r in results],
+        gated=[r.gated for r in results],
+        questions=[_question_rows(r) for r in results],
+        excluded_principles=[list(r.excluded_principles) for r in results],
+        artifact_keys=[r.artifact_key for r in results],
+    )

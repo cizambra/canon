@@ -27,3 +27,10 @@ testpaths = ["tests"]
 # Hatchling includes non-.py package data (e.g., default_rubric.yaml) by default
 [tool.hatch.build.targets.wheel]
 packages = ["src/canon"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]

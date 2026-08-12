@@ -5,7 +5,7 @@ not listed here is not a review nit.
 
 ## Code style
 
-- Standard PEP 8, as `ruff`/`black` format it. No custom style rules.
+- `ruff check` and `ruff format` are the gate — run both before you push. No custom style rules.
 - **Code should explain itself.** Write a comment only for something the code
   cannot say — a deliberate trade-off, a non-obvious constraint, a surprising
   behavior kept on purpose — and keep it to four lines or less. Never comment
@@ -22,6 +22,10 @@ not listed here is not a review nit.
 - `python -m pytest -q` must pass. The suite uses mock judges and makes no
   network calls; the real-judge validation in `examples/real_world/` runs on
   demand, not in CI.
+- Prefer scripted, deterministic tests. A test may exercise real concurrency
+  only to prove a concurrency guarantee, and its assertion must hold under
+  every possible interleaving. Never use a fixed sleep as a synchronization
+  point — await the task, event, or condition itself.
 
 ## Pull requests
 

@@ -1,6 +1,6 @@
 import pytest
-import math
-from canon.stats import wilson_ci, mean_stderr, fisher_exact
+
+from canon.stats import fisher_exact, mean_stderr, wilson_ci
 
 
 def test_wilson_bounds_within_0_1():
@@ -11,7 +11,7 @@ def test_wilson_bounds_within_0_1():
 def test_wilson_perfect_is_not_zero_width():
     lo, hi = wilson_ci(40, 40)
     assert hi == 1.0 or hi > 0.99
-    assert lo < 1.0   # not a degenerate zero-width interval
+    assert lo < 1.0  # not a degenerate zero-width interval
 
 
 def test_mean_stderr():
@@ -44,6 +44,7 @@ def test_fisher_exact_rejects_negative_cell():
     """A negative count must surface as a clean ValueError, not a KeyError
     from deep inside the log-factorial cache."""
     import pytest
+
     with pytest.raises(ValueError, match="non-negative"):
         fisher_exact(-1, 3, 0, 12)
 

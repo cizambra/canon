@@ -1,11 +1,14 @@
 import pytest
-from canon.constitution import constitution_from_file, constitution_from_dict
+
+from canon.constitution import constitution_from_dict, constitution_from_file
 from canon.errors import ConfigError
 
 
 def test_from_yaml(tmp_path):
     p = tmp_path / "constitution.yaml"
-    p.write_text("mission: Serve borrowers well\nprinciples:\n  - Be fair\n  - Be transparent\nversion: v1\n")
+    p.write_text(
+        "mission: Serve borrowers well\nprinciples:\n  - Be fair\n  - Be transparent\nversion: v1\n"
+    )
     c = constitution_from_file(p)
     assert c.mission == "Serve borrowers well"
     assert c.principles == ("Be fair", "Be transparent")
@@ -23,6 +26,7 @@ def test_from_json_file():
     import json
     import tempfile as _tempfile
     from pathlib import Path as _Path
+
     d = _Path(_tempfile.mkdtemp())
     p = d / "constitution.json"
     p.write_text(json.dumps({"mission": "Serve well", "principles": ["Be fair"], "version": 2}))
