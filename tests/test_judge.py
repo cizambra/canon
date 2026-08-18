@@ -126,6 +126,41 @@ def test_litellm_passes_request_timeout_and_temperature_through(monkeypatch):
     assert seen["timeout"] == 12.5
 
 
+def test_litellm_sends_no_temperature_unless_asked_for_one(monkeypatch):
+    """Reasoning models reject an explicit temperature outright ("Unsupported
+    value: 'temperature'"), so an unasked-for one must not reach the provider."""
+    import litellm
+
+    from canon.judge.litellm_judge import LiteLLMJudge
+
+    seen = {}
+
+    def fake_completion(**kwargs):
+        seen.update(kwargs)
+        return {"choices": [{"message": {"content": '{"choice": "yes", "evidence": "e"}'}}]}
+
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+    LiteLLMJudge(model="openai:gpt-5.6-luna").ask("sys", "q?", ("yes", "no"))
+    assert "temperature" not in seen
+
+
+def test_litellm_sends_an_explicitly_requested_zero_temperature(monkeypatch):
+    """0.0 is a real request, not an absent one."""
+    import litellm
+
+    from canon.judge.litellm_judge import LiteLLMJudge
+
+    seen = {}
+
+    def fake_completion(**kwargs):
+        seen.update(kwargs)
+        return {"choices": [{"message": {"content": '{"choice": "yes", "evidence": "e"}'}}]}
+
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+    LiteLLMJudge(model="openai:gpt-x", temperature=0.0).ask("sys", "q?", ("yes", "no"))
+    assert seen["temperature"] == 0.0
+
+
 def test_extract_json_from_a_json_fenced_code_block():
     from canon.judge.litellm_judge import _extract_json
 
