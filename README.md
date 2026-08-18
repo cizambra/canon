@@ -120,6 +120,11 @@ The model string can also carry a slash if the provider needs one, e.g.
 `provider:org/model` are recognized and normalized the same way under the
 hood (LiteLLM's own `provider/model` form).
 
+Canon sends no `temperature` with a judge call. Reasoning models refuse an
+explicit one outright, and what steadies a verdict here is the N-sample
+majority vote, not a pinned temperature. If your model wants a specific one,
+say so: `LiteLLMJudge(model=..., temperature=0.0)` passes it through.
+
 ## Baselines
 
 `canon accept` records the current run as your baseline; `canon check` scores
