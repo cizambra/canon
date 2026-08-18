@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from canon.baseline import artifact_key
+from canon.judge import resolve_judge
 from canon.models import CoherenceResult, Constitution
 from canon.rubric import Rubric, derive_questions, relevant_questions
 from canon.sampling import answer_question
@@ -36,15 +37,7 @@ class CoherenceMetric:
         self.threshold = threshold
         self.samples = samples
         self._rubric = Rubric.load_default()
-        if judge is None or isinstance(judge, str):
-            # A bare model string ("provider:model") is the documented shorthand
-            # for "use the default judge against this model".
-            from canon.config import default_judge_model
-            from canon.judge.litellm_judge import LiteLLMJudge
-
-            self.judge = LiteLLMJudge(model=judge or default_judge_model())
-        else:
-            self.judge = judge
+        self.judge = resolve_judge(judge)
 
     def score(self, artifact: str, task: str = "") -> CoherenceResult:
         questions = derive_questions(self._rubric, self.constitution)

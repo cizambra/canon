@@ -179,6 +179,37 @@ or quietly ignored. When the packaged rubric's own version changes, `canon
 check` refuses to compare against a baseline recorded under the old one and
 asks you to re-accept, for the same reason: two rubrics, two yardsticks.
 
+## Which direction is it serving?
+
+A coherence score says how well an artifact reasons against one constitution.
+It cannot say *which* constitution the artifact was reasoning against. That
+matters when direction changes mid-run: an agent still holding the old copy
+reasons beautifully against it and scores as high as an agent that moved,
+because the heaviest rubric question — does this advance the mission — passes
+whenever the mission itself didn't change.
+
+`serves_direction` is the separate reading for that:
+
+```python
+from canon import serves_direction
+
+verdict = serves_direction(artifact, current=NEW, superseded=OLD)
+assert verdict.serves == "current", verdict.evidence
+```
+
+The judge makes a forced choice — `current`, `superseded`, `both` or
+`neither` — over the same N-sample majority vote the rubric's questions use.
+The `DirectionVerdict` you get back carries that choice, the whole vote
+(`votes`, every choice including the ones nobody picked), its lopsidedness
+(`confidence`, the same measure as a rubric question's), and the evidence the
+winning sample cited. A split vote still returns a choice, so read
+`confidence` before acting on one.
+
+Direction is reported *beside* a coherence score and never folded into it: it
+is not a rubric question, it moves no number, and `CoherenceMetric` takes no
+second constitution. Two directions that state the same mission and principles
+raise `ValueError` rather than returning a verdict that distinguished nothing.
+
 ## Calling the pieces directly
 
 A few behaviours worth knowing if you use Canon's functions rather than its CLI:
