@@ -7,10 +7,13 @@ from canon.judge.base import Answer, Judge
 
 
 class LiteLLMJudge(Judge):
-    def __init__(self, model: str, temperature: float = 0.0, request_timeout: float = 60.0):
+    def __init__(self, model: str, temperature: float | None = None, request_timeout: float = 60.0):
         # Accept both Canon's documented `provider:model` and LiteLLM's own
         # `provider/model`, so a string copied from either reads the same.
         self.model = _normalize_model(model)
+        # Reasoning models reject any explicit temperature, so Canon sends one
+        # only when a caller names it. Repeatability comes from the N-sample
+        # majority vote, not from a pinned temperature.
         self.temperature = temperature
         # Bound each call so one stalled provider socket can't block a whole
         # `canon check` indefinitely (a slow/parked call surfaces as JudgeError).
@@ -24,15 +27,16 @@ class LiteLLMJudge(Judge):
             'Return ONLY JSON: {"choice": <one of the options>, '
             '"evidence": <one short sentence citing the artifact>}'
         )
+        optional = {} if self.temperature is None else {"temperature": self.temperature}
         try:
             resp = litellm.completion(
                 model=self.model,
-                temperature=self.temperature,
                 timeout=self.request_timeout,
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": prompt},
                 ],
+                **optional,
             )
             text = resp["choices"][0]["message"]["content"]
         except Exception as exc:  # network/provider/parse — surface uniformly
