@@ -42,6 +42,26 @@ class QuestionResult:
 
 
 @dataclass(frozen=True)
+class DirectionVerdict:
+    """Which direction an artifact serves — reported beside a coherence score,
+    never inside it. An artifact can reason impeccably against a direction that
+    was retired last week, and the score alone cannot say so."""
+
+    serves: str  # "current" | "superseded" | "both" | "neither"
+    votes: dict[str, int]  # every choice's share of the N-sample vote
+    confidence: float  # 0..1, lopsidedness of the N-sample vote
+    evidence: str
+
+    def to_dict(self) -> dict:
+        return {
+            "serves": self.serves,
+            "votes": dict(self.votes),
+            "confidence": self.confidence,
+            "evidence": self.evidence,
+        }
+
+
+@dataclass(frozen=True)
 class CoherenceResult:
     score: float  # 0..1 graded coherence
     gated: bool  # Non-Selective principle (NSCP) gate tripped

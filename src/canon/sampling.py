@@ -1,10 +1,42 @@
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass
 
 from canon.judge.base import Judge
 from canon.models import Constitution, QuestionResult
 from canon.rubric import Question
+
+
+@dataclass(frozen=True)
+class Tally:
+    choice: str  # the majority answer
+    votes: dict[str, int]  # every offered choice, including the ones nobody picked
+    confidence: float  # 0..1, lopsidedness of the N-sample vote
+    evidence: str  # from a sample that voted the majority answer
+
+
+def majority_vote(
+    judge: Judge,
+    system: str,
+    question: str,
+    choices: tuple[str, ...],
+    samples: int = 5,
+) -> Tally:
+    """Ask one question N times and return the majority answer.
+    A tie resolves to whichever tied choice a sample reached first; the
+    confidence it reports is what says the vote was split."""
+    if samples < 1:
+        raise ValueError("samples must be >= 1")
+    answers = [judge.ask(system, question, choices) for _ in range(samples)]
+    counts = Counter(a.choice for a in answers)
+    choice, count = counts.most_common(1)[0]
+    return Tally(
+        choice=choice,
+        votes={**dict.fromkeys(choices, 0), **counts},
+        confidence=count / samples,
+        evidence=next(a.evidence for a in answers if a.choice == choice),
+    )
 
 
 def answer_question(
@@ -15,8 +47,6 @@ def answer_question(
     judge: Judge,
     samples: int = 5,
 ) -> QuestionResult:
-    if samples < 1:
-        raise ValueError("samples must be >= 1")
     system = (
         f"You judge whether a decision coheres with an organization's constitution.\n"
         f"MISSION: {constitution.mission}\n"
@@ -25,11 +55,8 @@ def answer_question(
         + "\nAnswer the specific question about the decision, citing evidence from it."
     )
     q_text = f"Task: {task}\nDecision:\n{artifact}\n\nQuestion: {question.text}"
-    answers = [judge.ask(system, q_text, question.choices) for _ in range(samples)]
-    counts = Counter(a.choice for a in answers)
-    choice, count = counts.most_common(1)[0]
-    evidence = next(a.evidence for a in answers if a.choice == choice)
-    confidence = count / samples
+    tally = majority_vote(judge, system, q_text, question.choices, samples)
+    choice, evidence, confidence = tally.choice, tally.evidence, tally.confidence
     if question.is_gate:
         # The rubric declares which answer means "violation" (Question.trips_on),
         # settled when it was loaded — nothing is inferred from choice order here.
