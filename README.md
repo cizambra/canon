@@ -212,6 +212,26 @@ raise `ValueError` rather than returning a verdict that distinguished nothing.
 
 ## Calling the pieces directly
 
+### Scoring blinded experiment artifacts
+
+`canon score-jsonl` scores independent artifacts without accepting one cohort
+as the baseline for another. Each input line must contain exactly `id`, `task`,
+and `artifact`; cohort labels are deliberately rejected so the judge cannot see
+which treatment produced the work:
+
+```json
+{"id":"artifact-4e91","task":"Draft the launch announcement","artifact":"..."}
+```
+
+```console
+canon score-jsonl --input artifacts.jsonl --constitution constitution.yaml > scores.jsonl
+```
+
+Each output line preserves the blind id and includes the coherence score, pass
+decision, NSCP gate state, rubric version, excluded principles, and full
+per-question evidence. Join the results to treatment metadata only after all
+artifacts have been scored.
+
 A few behaviours worth knowing if you use Canon's functions rather than its CLI:
 
 - **`gate(results, baseline, threshold, tolerance=0.02)`** raises `ValueError`
