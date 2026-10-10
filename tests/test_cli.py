@@ -331,6 +331,91 @@ def test_check_threshold_override_is_honored(tmp_path, monkeypatch):
     assert "PASS" in r_override.output
 
 
+def test_score_jsonl_preserves_only_blind_ids_and_emits_auditable_results(
+    tmp_path, monkeypatch
+):
+    import json
+
+    monkeypatch.chdir(_project(tmp_path))
+    monkeypatch.setenv("CANON_MOCK_JUDGE", "yes")
+    source = tmp_path / "artifacts.jsonl"
+    source.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "id": "blind-a",
+                        "task": "decide fairly",
+                        "artifact": "a fair decision serving the mission",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "id": "blind-b",
+                        "task": "explain the decision",
+                        "artifact": "a clear explanation serving the mission",
+                    }
+                ),
+            ]
+        )
+    )
+
+    result = runner.invoke(
+        app,
+        ["score-jsonl", "--input", str(source), "--constitution", "constitution.yaml"],
+    )
+
+    assert result.exit_code == 0, result.output
+    rows = [json.loads(line) for line in result.stdout.splitlines()]
+    assert [row["id"] for row in rows] == ["blind-a", "blind-b"]
+    assert all(row["coheres"] is True for row in rows)
+    assert all(row["score"] == 1.0 for row in rows)
+    assert all(row["rubric_version"] for row in rows)
+    assert all(row["questions"] for row in rows)
+    assert "baseline" not in result.stdout
+    assert "kyno" not in result.stdout
+
+
+def test_score_jsonl_rejects_duplicate_ids_before_calling_the_judge(tmp_path, monkeypatch):
+    import json
+
+    monkeypatch.chdir(_project(tmp_path))
+    monkeypatch.setenv("CANON_MOCK_JUDGE", "yes")
+    source = tmp_path / "duplicate.jsonl"
+    row = {"id": "same", "task": "decide", "artifact": "first"}
+    source.write_text(json.dumps(row) + "\n" + json.dumps({**row, "artifact": "second"}))
+
+    result = runner.invoke(app, ["score-jsonl", "--input", str(source)])
+
+    assert result.exit_code == 2
+    assert "error: input contains duplicate id: same" in result.output
+
+
+def test_score_jsonl_rejects_cohort_metadata_that_would_unblind_the_judge(
+    tmp_path, monkeypatch
+):
+    import json
+
+    monkeypatch.chdir(_project(tmp_path))
+    monkeypatch.setenv("CANON_MOCK_JUDGE", "yes")
+    source = tmp_path / "unblinded.jsonl"
+    source.write_text(
+        json.dumps(
+            {
+                "id": "blind-a",
+                "task": "decide",
+                "artifact": "a decision",
+                "intervention": "kyno",
+            }
+        )
+    )
+
+    result = runner.invoke(app, ["score-jsonl", "--input", str(source)])
+
+    assert result.exit_code == 2
+    assert "must contain exactly id, task, and artifact" in result.output
+
+
 def test_accepted_baseline_json_content(tmp_path, monkeypatch):
     """After `canon accept`, assert the actual baseline content — rubric
     version, per-artifact score, and per-question entries — not just that

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -16,6 +17,41 @@ from canon.rubric import Rubric
 from canon.runner import run_suite
 
 app = typer.Typer(help="Canon — coherence testing.")
+
+
+def _jsonl_cases(input_path: str) -> list[dict]:
+    try:
+        lines = Path(input_path).read_text().splitlines()
+    except OSError as exc:
+        raise ConfigError(f"input file unreadable: {input_path}: {exc}") from exc
+
+    cases = []
+    seen_ids = set()
+    for line_number, line in enumerate(lines, start=1):
+        if not line.strip():
+            continue
+        try:
+            case = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ConfigError(f"input line {line_number} is not valid JSON: {exc.msg}") from exc
+        if not isinstance(case, dict):
+            raise ConfigError(f"input line {line_number} must be a JSON object")
+        if set(case) != {"id", "task", "artifact"}:
+            raise ConfigError(
+                f"input line {line_number} must contain exactly id, task, and artifact"
+            )
+        if not all(isinstance(case[key], str) for key in ("id", "task", "artifact")):
+            raise ConfigError(f"input line {line_number} fields must be strings")
+        if not case["id"].strip() or not case["artifact"].strip():
+            raise ConfigError(f"input line {line_number} id and artifact must not be blank")
+        if case["id"] in seen_ids:
+            raise ConfigError(f"input contains duplicate id: {case['id']}")
+        seen_ids.add(case["id"])
+        cases.append(case)
+
+    if not cases:
+        raise ConfigError("input has no artifacts")
+    return cases
 
 
 def _metric(constitution_path: str, threshold: float) -> CoherenceMetric:
@@ -123,3 +159,38 @@ def check(
     if rep.drift:
         typer.echo(f"FAIL {rep.drift}", err=True)
     raise typer.Exit(code=1)
+
+
+@app.command("score-jsonl")
+def score_jsonl(
+    input: str = typer.Option(..., help="Blinded JSONL with id, task, and artifact fields"),
+    constitution: str | None = typer.Option(None),
+    threshold: float | None = typer.Option(None),
+    config: str | None = typer.Option(None, help="Path to a canon.yaml to use"),
+):
+    """Score independent artifacts and emit one auditable JSON result per line."""
+    try:
+        settings = Settings.load(config_path=config)
+        effective_threshold = threshold if threshold is not None else settings.threshold
+        metric = _metric(
+            constitution or str(settings.constitution_file), effective_threshold
+        )
+        cases = _jsonl_cases(input)
+        rubric_version = Rubric.load_default().version
+        for case in cases:
+            result = metric.score(case["artifact"], case["task"])
+            typer.echo(
+                json.dumps(
+                    {
+                        "id": case["id"],
+                        "rubric_version": rubric_version,
+                        "threshold": effective_threshold,
+                        "coheres": not result.gated and result.score >= effective_threshold,
+                        **result.to_dict(),
+                    },
+                    sort_keys=True,
+                )
+            )
+    except (FileNotFoundError, CanonError) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from None
